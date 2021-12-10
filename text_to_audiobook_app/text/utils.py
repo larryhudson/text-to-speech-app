@@ -3,7 +3,7 @@ import trafilatura
 import os
 
 def extract_text(file, **options):
-    text = textract.process(file, **options).decode('utf8')
+    text = textract.process(file, method='tesseract').decode('utf8')
     if file.endswith('.pdf'):
         text = text.replace('-\n', '')
 

@@ -195,6 +195,9 @@ class Image(models.Model):
 
     text_file = models.OneToOneField(TextFile, on_delete=models.SET_NULL, null=True, blank=True, related_name='source_image')
 
+    def __str__(self):
+        return self.name
+
     def create_text_version(self, **textract_options):
         # try textract
         text = extract_text(self.file.path, **textract_options)
