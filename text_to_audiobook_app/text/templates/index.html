@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <h1>Text files</h1>
+
+<table v-scope>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Number of characters</th>
+            <th>Synthesis cost</th>
+            <th>Status</th>
+            <th>Download link</th>
+        </tr>
+
+    </thead>
+    <tbody>
+        {% for text_file in text_files %}
+        <tr>
+            <th><a href="{% url 'view_text_file' text_file.id %}">{{text_file.name}}</a></th>
+            <td>{{text_file.description}}</td>
+            <td>{{text_file.num_characters}}</td>
+            <td>{{text_file.synthesis_cost}}</td>
+            <td><span id="status-for-text-file-{{text_file.id}}">{{text_file.status}}</span>
+            {% if text_file.status == 'Not submitted' %}
+            <a @click.prevent="createAudio" data-text-file-id="{{text_file.id}}" href="{% url 'create_audio_version' text_file.id %}">Create audio version</a>
+            {% elif text_file.status == 'Succeeded' %}
+            <a href="{% url 'download' text_file.id %}">Do the downloady thing</a>
+            {% else %}
+            <a href="{% url 'update_status' text_file.id %}">Update status</a>
+            {% endif %}
+            </td>
+            <td id="mp3-file-for-text-file-{{text_file.id}}">{% if text_file.mp3_file %}<a href="{{text_file.mp3_file.url}}">Download</a>{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<script type="module">
+    import { createApp } from 'https://unpkg.com/petite-vue@0.3.0/dist/petite-vue.es.js'
+
+    createApp({
+        $delimiters: ['${', '}'],
+        createAudio: async function({target}) {
+            const textFileId = target.getAttribute('data-text-file-id')
+            const url = `/text_file/${textFileId}/create_audio_version`
+
+            const statusSpan = document.getElementById(`status-for-text-file-${textFileId}`)
+            statusSpan.innerText = 'Processing...'
+
+            const response = await fetch(url)
+
+            if (response.ok) {
+                const data = await response.json()
+                // update status
+                statusSpan.innerText = data.status
+                if (data.mp3_file_path) {
+                    document.getElementById(`mp3-file-for-text-file-${textFileId}`).innerHTML = `<a href="${data.mp3_file_path}">Download</a>`
+                } else {
+
+                }
+
+                // remove the 'create audio version link'
+                target.remove()
+            } else {
+                console.log('error')
+            }
+        }
+    }).mount()
+</script>
+</body>
+</html>
+
+
+
