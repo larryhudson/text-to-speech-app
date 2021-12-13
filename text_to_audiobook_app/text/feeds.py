@@ -1,6 +1,7 @@
 from django.contrib.syndication.views import Feed
 from django.urls import reverse
 from .models import TextFile
+import os
 
 class AudioFeed(Feed):
     title = "Audio items"
@@ -16,6 +17,14 @@ class AudioFeed(Feed):
     def item_description(self, item):
         return item.description
 
-    # item_link is only needed if NewsItem has no get_absolute_url method.
     def item_link(self, item):
         return item.mp3_file.url
+
+    def item_enclosure_mime_type(self, item):
+        return 'audio/mpeg'
+
+    def item_enclosure_url(self, item):
+        return item.mp3_file.url
+
+    def item_enclosure_length(self, item):
+        return os.path.getsize(item.mp3_file.path)
