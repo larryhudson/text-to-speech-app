@@ -26,7 +26,7 @@ SECRET_KEY = config('DJANGO_SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [config('SERVER_IP')]
 
 MICROSOFT_TTS_KEY = config('MICROSOFT_TTS_KEY')
 MICROSOFT_TTS_REGION = config('MICROSOFT_TTS_REGION')
