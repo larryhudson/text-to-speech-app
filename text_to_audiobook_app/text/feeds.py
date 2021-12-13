@@ -104,7 +104,7 @@ class AudioFeed(PodcastFeed):
         return 'audio/mpeg'
 
     def item_enclosure_url(self, item):
-        return item.mp3_file.url
+        return f'http://{config("SERVER_IP")}{item.mp3_file.url}'
 
     def item_enclosure_length(self, item):
         return os.path.getsize(item.mp3_file.path)
