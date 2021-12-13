@@ -4,9 +4,10 @@ from .models import TextFile
 import os
 
 class AudioFeed(Feed):
-    title = "Audio items"
-    link = "/audio-items/"
+    title = "text-to-speech-app items"
+    link = "/audio-feed/"
     description = "Audio versions of your text files."
+    author = 'Larry Hudson'
 
     def items(self):
         return TextFile.objects.exclude(mp3_file='')
