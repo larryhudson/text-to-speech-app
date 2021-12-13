@@ -2,10 +2,11 @@ from django.contrib.syndication.views import Feed
 from django.urls import reverse
 from .models import TextFile
 import os
+from decouple import config
 
 class AudioFeed(Feed):
     title = "text-to-speech-app items"
-    link = "/audio-feed/"
+    link = f"http://{config('SERVER_IP')}"
     description = "Audio versions of your text files."
     author = 'Larry Hudson'
 
