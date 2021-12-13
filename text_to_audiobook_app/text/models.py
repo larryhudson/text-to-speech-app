@@ -1,4 +1,5 @@
 from django.db import models
+from django.urls import reverse
 import api.utils as api
 from .utils import extract_text, extract_text_from_url, write_text_to_file
 import os
@@ -22,6 +23,8 @@ class TextFile(models.Model):
     name = models.CharField(max_length=255)
 
     description = models.CharField(max_length=255)
+
+    date_added = models.DateTimeField(auto_now_add=True)
 
     synthesis_id = models.CharField(null=True,blank=True, max_length=255)
 
@@ -57,6 +60,9 @@ class TextFile(models.Model):
     mp3_file = models.FileField(upload_to=audio_file_upload_path, null=True, blank=True)
 
     download_link = models.URLField(null=True,blank=True, max_length=255)
+
+    def get_absolute_url(self):
+        return reverse('view_text_file', args=[self.id])
 
     def text_content(self):
         with open(self.file.path) as file:

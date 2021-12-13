@@ -97,8 +97,8 @@ class AudioFeed(PodcastFeed):
     def item_description(self, item):
         return item.description
 
-    def item_link(self, item):
-        return item.mp3_file.url
+    def item_pubdate(self, item):
+        return item.date_added
 
     def item_enclosure_mime_type(self, item):
         return 'audio/mpeg'
