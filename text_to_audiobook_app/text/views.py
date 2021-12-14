@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from .models import TextFile, Image, Webpage
 from . import forms
 from .utils import write_text_to_file
+from django.contrib.auth.decorators import login_required
 # Create your views here.
 
 def index(request):
@@ -31,7 +32,7 @@ def create_audio_version(request, id):
         return redirect('/')
 
 
-
+@login_required
 def new_text_file(request):
     if request.method == 'GET':
         form = forms.TextFileForm()
@@ -42,7 +43,7 @@ def new_text_file(request):
             text_file = form.save()
             return redirect(text_file)
 
-
+@login_required
 def new_image(request):
     if request.method == 'GET':
         form = forms.ImageForm()
@@ -55,6 +56,7 @@ def new_image(request):
         else:
             return render(request, 'modify.html', {'form': form})
 
+@login_required
 def new_webpage(request):
     if request.method == 'GET':
         form = forms.WebpageForm()
@@ -72,6 +74,7 @@ def view_text_file(request, id):
 
     return render(request, 'view_text_file.html', {'text_file': text_file})
 
+@login_required
 def modify_text_content(request, id):
     text_file = TextFile.objects.get(id=id)
 
