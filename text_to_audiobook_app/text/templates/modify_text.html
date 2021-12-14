@@ -1,0 +1,10 @@
+<h1>{{text_file.name}}</h1>
+
+<form method="POST">
+    {% csrf_token %}
+    <label for="text_content">Modify text content</label>
+    <textarea name="text_content" id="text_content">
+        {{text_file.text_content}}
+    </textarea>
+    <button>Save</button>
+</form>

@@ -9,6 +9,11 @@
 <body>
     <h1>Text files</h1>
 
+    <nav>
+        <a href="{% url 'new_image' %}">Add a document</a>
+        <a href="{% url 'new_webpage' %}">Add a webpage</a>
+    </nav>
+
 <table v-scope>
     <thead>
         <tr>
@@ -55,7 +60,11 @@
             const statusSpan = document.getElementById(`status-for-text-file-${textFileId}`)
             statusSpan.innerText = 'Processing...'
 
-            const response = await fetch(url)
+            const response = await fetch(url, {
+                headers: {
+                    "X-Is-Fetch": "True",
+                }
+            })
 
             if (response.ok) {
                 const data = await response.json()

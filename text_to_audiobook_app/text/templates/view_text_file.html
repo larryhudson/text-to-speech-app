@@ -2,6 +2,9 @@
 
 <h2>Text content</h2>
 
+<a href="{% url 'modify_text_content' text_file.id %}">Modify text content</a> |
+<a href="{% url 'create_audio_version' text_file.id %}">Create audio version</a>
+
 <pre>
     {{text_file.text_content}}
 </pre>
