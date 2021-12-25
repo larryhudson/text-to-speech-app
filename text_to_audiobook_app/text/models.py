@@ -6,6 +6,7 @@ import os
 from django.conf import settings
 import requests
 import shutil
+from asgiref.sync import sync_to_async
 
 
 # Create your models here.
@@ -46,9 +47,7 @@ class TextFile(models.Model):
         price_per_character_short = 0.000022
         price_per_character_long = 0.000139
 
-        dollars = (num_characters * price_per_character_short
-            if is_short else
-            num_characters * price_per_character_long)
+        dollars = num_characters * price_per_character_short
 
         return '$' + format(dollars, ',.2f')
             
@@ -70,21 +69,12 @@ class TextFile(models.Model):
         
         return text
 
-    def create_audio_version(self):
-        num_characters = self.num_characters()
-        is_short = self.is_short()
-        if is_short:
-            done = api.synthesise_short_text(self)
-            if done:
-                self.mp3_file.name = self.audio_file_upload_path(None)
-                self.status = 'Ready to download'
-                self.save()
-        else:
-            synthesis_id = api.submit_synthesis_for_text_file(self)
-            if synthesis_id:
-                self.synthesis_id = synthesis_id
-                self.status = 'Submitted'
-                self.save()
+    async def create_audio_version(self):
+        done = await api.synthesise_text_file(self)
+        if done:
+            self.mp3_file.name = self.audio_file_upload_path(None)
+            self.status = 'Ready to download'
+            await sync_to_async(self.save)()
     
     def update_synthesis_status(self):
         if (self.mp3_file):

@@ -4,6 +4,7 @@ from .models import TextFile, Image, Webpage
 from . import forms
 from .utils import write_text_to_file
 from django.contrib.auth.decorators import login_required
+from asgiref.sync import sync_to_async
 # Create your views here.
 
 def index(request):
@@ -16,10 +17,10 @@ def detail(request, id):
 
     return render(request, 'detail.html', {'text_file': text_file})
 
-def create_audio_version(request, id):
-    text_file = TextFile.objects.get(id=id)
+async def create_audio_version(request, id):
+    text_file = await sync_to_async(TextFile.objects.get)(id=id)
 
-    text_file.create_audio_version()
+    await text_file.create_audio_version()
 
     request_is_fetch = request.headers.get("X-Is-Fetch", False)
 

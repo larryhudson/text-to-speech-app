@@ -1,140 +1,120 @@
 from django.conf import settings
-import json
-import requests
 import os.path
+import re
 from azure.cognitiveservices.speech import AudioDataStream, SpeechConfig, SpeechSynthesizer, SpeechSynthesisOutputFormat
 from azure.cognitiveservices.speech.audio import AudioOutputConfig
 
-from azure.cognitiveservices.vision.computervision import ComputerVisionClient
-from azure.cognitiveservices.vision.computervision.models import OperationStatusCodes
-from azure.cognitiveservices.vision.computervision.models import VisualFeatureTypes
-from msrest.authentication import CognitiveServicesCredentials
-
-from array import array
 import os
-from PIL import Image
-import sys
-import time
-
-
+from pydub import AudioSegment
+import asyncio
 
 MICROSOFT_TTS_REGION = settings.MICROSOFT_TTS_REGION
 MICROSOFT_TTS_KEY = settings.MICROSOFT_TTS_KEY
 API_BASE_ADDRESS = f'https://{MICROSOFT_TTS_REGION}.customvoice.api.speech.microsoft.com/api/texttospeech/v3.0-beta1'
 
-def synthesise_short_text(text_file):
-    print('hello')
-    speech_config = SpeechConfig(
-        subscription=MICROSOFT_TTS_KEY,
-        region=MICROSOFT_TTS_REGION)
 
-    speech_config.speech_synthesis_language = "en-AU"
-    speech_config.speech_synthesis_voice_name ="en-AU-NatashaNeural"
-    speech_config.set_speech_synthesis_output_format(SpeechSynthesisOutputFormat['Audio16Khz64KBitRateMonoMp3'])
+def break_text_into_chunks(full_text, max_chunk_size=7000):
+    """
+    Break text string into an array of strings, no bigger than the preferred chunk size
+    """
+
+    chunks = []
+    current_chunk_length = 0
+    current_chunk_sentences = []
+
+    sentences = re.split('\. |\.\\n', full_text)
+
+    for sentence in sentences:
+        if current_chunk_length + len(sentence) > max_chunk_size:
+            # this chunk is done, join it together
+            chunk_text = '.\n'.join(current_chunk_sentences)
+            chunks.append(chunk_text)
+            current_chunk_sentences = []
+            current_chunk_length = 0
+        else:
+            current_chunk_sentences.append(sentence)
+            current_chunk_length += len(sentence)
+
+    # add the remaining text as the last chunk
+    chunk_text = '.\n'.join(current_chunk_sentences)
+    chunks.append(chunk_text)
+
+    return chunks
+
+def join_mp3_files(mp3_paths, joined_mp3_path):
+    """
+    Combine an array of MP3 files and output a single MP3 file
+    """
+
+    combined_audio_segments = AudioSegment.empty()
+
+    for mp3_path in mp3_paths:
+        audio_segment = AudioSegment.from_file(mp3_path)
+        combined_audio_segments += audio_segment
+
+    print('Exporting joined MP3 to path:')
+    print(joined_mp3_path)
+
+    combined_audio_segments.export(joined_mp3_path, format="mp3")
+
+    return joined_mp3_path
+
+async def synthesise_text_file(text_file):
+
+    with open(text_file.file.path) as file:
+        text = file.read()
+
     audio_file_path = os.path.join(settings.MEDIA_ROOT, text_file.audio_file_upload_path(None))
+
     audio_file_folder = os.path.dirname(audio_file_path)
 
     if not os.path.isdir(audio_file_folder):
         os.makedirs(audio_file_folder)
-    
-    print(audio_file_path)
 
+    if len(text) < 7000:
+        synthesised_audio_file = await synthesise_short_text(text, audio_file_path)
+        return True
+
+    else:
+        chunks = break_text_into_chunks(text, 7000)
+        audio_file_folder = os.path.dirname(audio_file_path)
+
+        chunk_mp3_paths = []
+        
+        chunk_tuples = []
+
+        for chunk_index, chunk_text in enumerate(chunks):
+            chunk_mp3_path = os.path.join(audio_file_folder, f'chunk_{chunk_index}.mp3')
+            chunk_mp3_paths.append(chunk_mp3_path)
+            chunk_tuples.append(
+                (chunk_text, chunk_mp3_path)
+            )
+
+        await asyncio.gather(*[synthesise_short_text_async(chunk_text, chunk_mp3_path) for chunk_text, chunk_mp3_path in chunk_tuples])
+
+        joined_mp3_files = join_mp3_files(chunk_mp3_paths, audio_file_path)
+        return True
+
+async def synthesise_short_text_async(*args):
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, synthesise_short_text, *args)
+
+def synthesise_short_text(text_string, audio_file_path):
+
+    speech_config = SpeechConfig(
+        subscription=MICROSOFT_TTS_KEY,
+        region=MICROSOFT_TTS_REGION)
+
+    print(f'Synthesising {len(text_string)} characters to output path:')
+    print(audio_file_path)
+    speech_config.speech_synthesis_language = "en-AU"
+    speech_config.speech_synthesis_voice_name ="en-AU-NatashaNeural"
+    speech_config.set_speech_synthesis_output_format(SpeechSynthesisOutputFormat['Audio16Khz64KBitRateMonoMp3'])
+    
     audio_config = AudioOutputConfig(filename=audio_file_path)
     synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
-    with open(text_file.file.path) as file:
-        text = file.read()
-    print(text)
-    result = synthesizer.speak_text_async(text)
-    return True
 
-
-def get_synthesis_status(synthesis_id):
-    request_url = f'{API_BASE_ADDRESS}/voicesynthesis/{synthesis_id}'
-
-    response = requests.get(
-        request_url,
-        headers={"Ocp-Apim-Subscription-Key":MICROSOFT_TTS_KEY},
-        verify=False
-    )
-    
-    if response.status_code == 200:
-        synthesis = json.loads(response.text)
-        return synthesis
-    else:
-        print("getSubmittedSyntheses with ID request failed")
-        print("response.status_code: %d" % response.status_code)
-        print("response.text: %s" % response.text)
-        return None
-
-def submit_synthesis_for_text_file(text_file):
-    print('hello!')
-    voiceId = 'bcde0279-765d-4336-9647-af83a0ac665d'
-    concatenateResult = True
-    locale = 'en-AU'
-    outputFormat = 'audio-16khz-64kbitrate-mono-mp3'
-
-    synthesisData = {
-        'name': text_file.name,
-        'description': text_file.description,
-        'models': json.dumps([voiceId]),
-        'locale': locale,
-        'outputformat': outputFormat,
-        'properties': json.dumps({
-            'ConcatenateResult': 'true' if concatenateResult else 'false'
-        })
-    }
-
-    filename = os.path.basename(text_file.file.name)
-
-    files = {'script': (filename, open(text_file.file.path, 'rb'), 'text/plain')}
-
-    request_url = f'{API_BASE_ADDRESS}/voicesynthesis'
-
-    response = requests.post(
-        request_url,
-        synthesisData,
-        headers={"Ocp-Apim-Subscription-Key": MICROSOFT_TTS_KEY},
-        files=files,
-        verify=False)
-    
-    if response.status_code == 202:
-        location = response.headers['Location']
-        id = location.split("/")[-1]
-        print("Submit synthesis request successful , id: %s" % (id))
-        return id
-    else:
-        print("Submit synthesis request failed")
-        print("response.status_code: %d" % response.status_code)
-        print("response.text: %s" % response.text)
-        return False
-
-def submit_ocr_request(image_path):
-    computervision_client = ComputerVisionClient(
-        settings.MICROSOFT_CV_ENDPOINT,
-        CognitiveServicesCredentials(settings.MICROSOFT_CV_KEY)
-    )
-
-    image_file = open(image_path, "rb")
-
-    read_response = computervision_client.read_in_stream(image_file, raw=True)
-
-    read_operation_location = read_response.headers["Operation-Location"]
-
-    operation_id = read_operation_location.split("/")[-1]
-    print(f'operation id: {operation_id}')
-    return operation_id
-
-def get_ocr_result(operation_id):
-    computervision_client = ComputerVisionClient(
-        settings.MICROSOFT_CV_ENDPOINT,
-        CognitiveServicesCredentials(settings.MICROSOFT_CV_KEY)
-    )
-
-    read_result = computervision_client.get_read_result(operation_id)
-
-    if read_result.status == OperationStatusCodes.succeeded:
-        lines = []
-        for text_result in read_result.analyze_result.read_results:
-            for line in text_result.lines:
-                lines.append(line.text)
-    return '\n'.join(lines)
+    result = synthesizer.speak_text(text_string)
+    print('Done synthesising for path:')
+    print(audio_file_path)
+    return audio_file_path
